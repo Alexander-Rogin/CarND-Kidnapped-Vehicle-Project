@@ -39,7 +39,10 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
         for (int i = 0; i < num_particles; i++) {
             Particle p = {i, x_dist(gen), y_dist(gen), theta_dist(gen)};
             particles.push_back(p);
+
+            weights.push_back(1);
         }
+        is_initialized = true;
     }
 }
 
