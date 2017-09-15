@@ -14,10 +14,13 @@
 #include <sstream>
 #include <string>
 #include <iterator>
+#include <random>
 
 #include "particle_filter.h"
 
 using namespace std;
+
+const int PARTICLE_NUM = 10;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
@@ -25,6 +28,19 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
+    if (!is_initialized) {
+        num_particles = PARTICLE_NUM;
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        normal_distribution<> x_dist(x, std[0]);
+        normal_distribution<> y_dist(y, std[1]);
+        normal_distribution<> theta_dist(theta, std[2]);
+        for (int i = 0; i < num_particles; i++) {
+            Particle p = {i, x_dist(gen), y_dist(gen), theta_dist(gen)};
+            particles.push_back(p);
+        }
+    }
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
