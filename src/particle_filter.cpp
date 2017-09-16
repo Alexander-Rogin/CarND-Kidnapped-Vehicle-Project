@@ -51,7 +51,11 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
-
+    for (Particle& p : particles) {
+        p.x += (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) * velocity / p.theta;
+        p.y += (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) * velocity / p.theta;
+        p.theta += yaw_rate * delta_t;
+    }
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
@@ -74,6 +78,12 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+    for (Particle& p : particles) {
+        for (LandmarkObs& observation : observations) {
+            double x_map = p.x + (cos(p.theta) * observation.x - sin(p.theta) * observation.y);
+            double y_map = p.y + (sin(p.theta) * observation.x + cos(p.theta) * observation.y);
+        }
+    }
 }
 
 void ParticleFilter::resample() {
