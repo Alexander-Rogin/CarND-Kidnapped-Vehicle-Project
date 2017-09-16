@@ -63,7 +63,18 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
-
+    for (LandmarkObs& pred : predicted) {
+        double min_distance = -1.0;
+        for (LandmarkObs& obs : observations) {
+            double diff_x = pred.x - obs.x;
+            double diff_y = pred.y - obs.y;
+            double dist = sqrt(diff_x * diff_x + diff_y * diff_y);
+            if (min_distance < 0 || dist < min_distance) {
+                min_distance = dist;
+                obs.id = pred.id;
+            }
+        }
+    }
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -78,12 +89,22 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+    double gauss_norm = (1 / (2 * M_PI * std_landmark[0] * std_landmark[1]));
+    std::vector<LandmarkObs> predicted;
     for (Particle& p : particles) {
-        for (LandmarkObs& observation : observations) {
-            double x_map = p.x + (cos(p.theta) * observation.x - sin(p.theta) * observation.y);
-            double y_map = p.y + (sin(p.theta) * observation.x + cos(p.theta) * observation.y);
+        for (LandmarkObs& landmark : map_landmarks.landmark_list) {
+            LandmarkObs obs;
+            obs.id = landmark.id_i;
+            obs.x = p.x + (cos(p.theta) * landmark.x_f - sin(p.theta) * landmark.y_f);
+            obs.y = p.y + (sin(p.theta) * landmark.x_f + cos(p.theta) * landmark.y_f);
+            predicted.push_back(obs);
         }
+        dataAssociation(predicted, observations);
+
     }
+
+    
+
 }
 
 void ParticleFilter::resample() {
