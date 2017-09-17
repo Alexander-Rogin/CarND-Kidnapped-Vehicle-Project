@@ -20,7 +20,7 @@
 
 using namespace std;
 
-const int PARTICLE_NUM = 10;
+const int PARTICLE_NUM = 50;
 static default_random_engine gen;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
@@ -32,9 +32,9 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     if (!is_initialized) {
         num_particles = PARTICLE_NUM;
 
-        normal_distribution<> x_dist(x, std[0]);
-        normal_distribution<> y_dist(y, std[1]);
-        normal_distribution<> theta_dist(theta, std[2]);
+        normal_distribution<double> x_dist(x, std[0]);
+        normal_distribution<double> y_dist(y, std[1]);
+        normal_distribution<double> theta_dist(theta, std[2]);
         for (int i = 0; i < num_particles; i++) {
             Particle p = {i, x_dist(gen), y_dist(gen),theta_dist(gen), 1.0};
             particles.push_back(p);
@@ -48,13 +48,24 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
-    normal_distribution<> x_dist(0, std_pos[0]);
-    normal_distribution<> y_dist(0, std_pos[1]);
-    normal_distribution<> theta_dist(0, std_pos[2]);
+    normal_distribution<double> x_dist(0, std_pos[0]);
+    normal_distribution<double> y_dist(0, std_pos[1]);
+    normal_distribution<double> theta_dist(0, std_pos[2]);
+
+
     for (Particle& p : particles) {
-        p.x += (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) * velocity / p.theta + x_dist(gen);
-        p.y += (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) * velocity / p.theta + y_dist(gen);
-        p.theta += yaw_rate * delta_t + theta_dist(gen);
+        if (fabs(yaw_rate) < 0.00001) {  
+            p.x += velocity * delta_t * cos(p.theta) + x_dist(gen);
+            p.y += velocity * delta_t * sin(p.theta) + y_dist(gen);
+            p.theta += theta_dist(gen);
+        } else {
+            // particles[i].x += velocity / yaw_rate * (sin(particles[i].theta + yaw_rate*delta_t) - sin(particles[i].theta));
+            // particles[i].y += velocity / yaw_rate * (cos(particles[i].theta) - cos(particles[i].theta + yaw_rate*delta_t));
+            // particles[i].theta += yaw_rate * delta_t;
+            p.x += (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) * velocity / yaw_rate + x_dist(gen);
+            p.y += (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) * velocity / yaw_rate + y_dist(gen);
+            p.theta += yaw_rate * delta_t + theta_dist(gen);
+        }
     }
 }
 
@@ -63,14 +74,12 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
-    for (LandmarkObs& pred : predicted) {
+    for (LandmarkObs& obs : observations) {
         double min_distance = -1.0;
-        for (LandmarkObs& obs : observations) {
-            double diff_x = pred.x - obs.x;
-            double diff_y = pred.y - obs.y;
-            double dist = sqrt(diff_x * diff_x + diff_y * diff_y);
-            if (min_distance < 0 || dist < min_distance) {
-                min_distance = dist;
+        for (LandmarkObs& pred : predicted) {
+            double distance = dist(pred.x, pred.y, obs.x, obs.y);
+            if (min_distance < 0 || distance < min_distance) {
+                min_distance = distance;
                 obs.id = pred.id;
             }
         }
@@ -95,20 +104,35 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     std::vector<LandmarkObs> predicted;
     for (Particle& p : particles) {
         for (Map::single_landmark_s& landmark : map_landmarks.landmark_list) {
+            if (dist(p.x, p.y, landmark.x_f, landmark.y_f) > sensor_range) {
+                continue;
+            }
+
             LandmarkObs obs;
             obs.id = landmark.id_i;
-            obs.x = p.x + (cos(p.theta) * landmark.x_f - sin(p.theta) * landmark.y_f);
-            obs.y = p.y + (sin(p.theta) * landmark.x_f + cos(p.theta) * landmark.y_f);
+            obs.x = landmark.x_f;
+            obs.y = landmark.y_f;
             predicted.push_back(obs);
         }
-        dataAssociation(predicted, observations);
 
+        vector<LandmarkObs> transformed;
         for (LandmarkObs& obs : observations) {
-            for (LandmarkObs& landmark : predicted) {
-                if (obs.id == landmark.id) {
-                    double exponent = pow(obs.x - landmark.x, 2) / (2 * pow(sigma_x, 2)) + pow(obs.y - landmark.y, 2) / (2 * pow(sigma_y, 2));
-                    p.weight = gauss_norm * exp(-exponent);
-                    break;
+            LandmarkObs trans;
+            trans.id = obs.id;
+            trans.x = p.x + cos(p.theta) * obs.x - sin(p.theta) * obs.y;
+            trans.y = p.y + sin(p.theta) * obs.x + cos(p.theta) * obs.y;
+            transformed.push_back(trans);
+        }
+        dataAssociation(predicted, transformed);
+
+        p.weight = 1.0;
+        for (LandmarkObs& trans : transformed) {
+            for (LandmarkObs& pred : predicted) {
+                if (trans.id == pred.id) {
+                    double exponent = pow(trans.x - pred.x, 2) / (2 * pow(sigma_x, 2)) + pow(trans.y - pred.y, 2) / (2 * pow(sigma_y, 2));
+                    // cout << "!!!! (" << __LINE__ << ") exp=" << exponent << " exp()=" << exp(-exponent) << " sigma_x=" << pow(trans.x - pred.x, 2) << endl;
+                    p.weight *= gauss_norm * exp(-exponent);
+                    // break;
                 }
             }
         }
