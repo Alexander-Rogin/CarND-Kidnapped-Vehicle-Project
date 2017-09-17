@@ -15,7 +15,6 @@
 #include <string>
 #include <iterator>
 #include <random>
-#include <initializer_list>
 
 #include "particle_filter.h"
 
@@ -109,7 +108,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
                 if (obs.id == landmark.id) {
                     double exponent = pow(obs.x - landmark.x, 2) / (2 * pow(sigma_x, 2)) + pow(obs.y - landmark.y, 2) / (2 * pow(sigma_y, 2));
                     p.weight = gauss_norm * exp(-exponent);
-                    weight_sum += p.weight;
                     break;
                 }
             }
@@ -124,12 +122,12 @@ void ParticleFilter::resample() {
     std::random_device rd;
     std::mt19937 gen(rd());
 
-    initializer_list<double> weights;
+    vector<double> weights;
     for (Particle& p : particles) {
         weights.push_back(p.weight);
     }
 
-    std::discrete_distribution<> d(weights);
+    std::discrete_distribution<> d(weights.begin(), weights.end());
     vector<Particle> sampled_particles;
     for (int i = 0; i < num_particles; i++) {
         sampled_particles.push_back(particles[d(gen)]);
