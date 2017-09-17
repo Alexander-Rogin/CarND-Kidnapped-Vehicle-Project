@@ -21,6 +21,7 @@
 using namespace std;
 
 const int PARTICLE_NUM = 10;
+static default_random_engine gen;
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
@@ -31,16 +32,12 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     if (!is_initialized) {
         num_particles = PARTICLE_NUM;
 
-        std::random_device rd;
-        std::mt19937 gen(rd());
         normal_distribution<> x_dist(x, std[0]);
         normal_distribution<> y_dist(y, std[1]);
         normal_distribution<> theta_dist(theta, std[2]);
         for (int i = 0; i < num_particles; i++) {
-            Particle p = {i, x_dist(gen), y_dist(gen), theta_dist(gen)};
+            Particle p = {i, x_dist(gen), y_dist(gen),theta_dist(gen), 1.0};
             particles.push_back(p);
-
-            weights.push_back(1);
         }
         is_initialized = true;
     }
@@ -51,10 +48,13 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
+    normal_distribution<> x_dist(0, std_pos[0]);
+    normal_distribution<> y_dist(0, std_pos[1]);
+    normal_distribution<> theta_dist(0, std_pos[2]);
     for (Particle& p : particles) {
-        p.x += (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) * velocity / p.theta;
-        p.y += (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) * velocity / p.theta;
-        p.theta += yaw_rate * delta_t;
+        p.x += (sin(p.theta + yaw_rate * delta_t) - sin(p.theta)) * velocity / p.theta + x_dist(gen);
+        p.y += (cos(p.theta) - cos(p.theta + yaw_rate * delta_t)) * velocity / p.theta + y_dist(gen);
+        p.theta += yaw_rate * delta_t + theta_dist(gen);
     }
 }
 
