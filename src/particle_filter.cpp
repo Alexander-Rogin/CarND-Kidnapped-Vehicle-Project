@@ -105,7 +105,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     double denom_y = 2 * pow(sigma_y, 2);
     std::vector<LandmarkObs> predicted;
     for (Particle& p : particles) {
-        for (Map::single_landmark_s& landmark : map_landmarks.landmark_list) {
+        for (auto& landmark : map_landmarks.landmark_list) {
             if (dist(p.x, p.y, landmark.x_f, landmark.y_f) > sensor_range) {
                 continue;
             }
@@ -118,7 +118,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         }
 
         vector<LandmarkObs> transformed;
-        for (LandmarkObs& obs : observations) {
+        for (auto& obs : observations) {
             LandmarkObs trans;
             trans.id = obs.id;
             trans.x = p.x + cos(p.theta) * obs.x - sin(p.theta) * obs.y;
