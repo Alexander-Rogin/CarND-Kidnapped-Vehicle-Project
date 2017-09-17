@@ -89,7 +89,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
-    double gauss_norm = (1 / (2 * M_PI * std_landmark[0] * std_landmark[1]));
+    double sigma_x = std_landmark[0];
+    double sigma_y = std_landmark[1];
+    double gauss_norm = (1 / (2 * M_PI * sigma_x * sigma_y));
     std::vector<LandmarkObs> predicted;
     for (Particle& p : particles) {
         for (LandmarkObs& landmark : map_landmarks.landmark_list) {
@@ -101,10 +103,16 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         }
         dataAssociation(predicted, observations);
 
+        for (LandmarkObs& obs : observations) {
+            for (LandmarkObs& landmark : predicted) {
+                if (obs.id == landmark.id) {
+                    double exponent = pow(obs.x - landmark.x, 2) / (2 * pow(sigma_x, 2)) + pow(obs.y - landmark.y, 2) / (2 * pow(sigma_y, 2));
+                    p.weight = gauss_norm * exp(-exponent);
+                    break;
+                }
+            }
+        }
     }
-
-    
-
 }
 
 void ParticleFilter::resample() {
