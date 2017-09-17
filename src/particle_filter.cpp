@@ -15,6 +15,7 @@
 #include <string>
 #include <iterator>
 #include <random>
+#include <initializer_list>
 
 #include "particle_filter.h"
 
@@ -92,7 +93,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     double sigma_x = std_landmark[0];
     double sigma_y = std_landmark[1];
     double gauss_norm = (1 / (2 * M_PI * sigma_x * sigma_y));
-    double weight_sum = 0.0;
     std::vector<LandmarkObs> predicted;
     for (Particle& p : particles) {
         for (Map::single_landmark_s& landmark : map_landmarks.landmark_list) {
@@ -115,17 +115,26 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             }
         }
     }
-
-    for (Particle& p : particles) {
-        p.weight /= weight_sum;
-    }
 }
 
 void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+    std::random_device rd;
+    std::mt19937 gen(rd());
 
+    initializer_list<double> weights;
+    for (Particle& p : particles) {
+        weights.push_back(p.weight);
+    }
+
+    std::discrete_distribution<> d(weights);
+    vector<Particle> sampled_particles;
+    for (int i = 0; i < num_particles; i++) {
+        sampled_particles.push_back(particles[d(gen)]);
+    }
+    particles = sampled_particles;
 }
 
 Particle ParticleFilter::SetAssociations(Particle particle, std::vector<int> associations, std::vector<double> sense_x, std::vector<double> sense_y)
