@@ -101,6 +101,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
     double sigma_x = std_landmark[0];
     double sigma_y = std_landmark[1];
     double gauss_norm = (1 / (2 * M_PI * sigma_x * sigma_y));
+    double denom_x = 2 * pow(sigma_x, 2);
+    double denom_y = 2 * pow(sigma_y, 2);
     std::vector<LandmarkObs> predicted;
     for (Particle& p : particles) {
         for (Map::single_landmark_s& landmark : map_landmarks.landmark_list) {
@@ -129,10 +131,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         for (LandmarkObs& trans : transformed) {
             for (LandmarkObs& pred : predicted) {
                 if (trans.id == pred.id) {
-                    double exponent = pow(trans.x - pred.x, 2) / (2 * pow(sigma_x, 2)) + pow(trans.y - pred.y, 2) / (2 * pow(sigma_y, 2));
-                    // cout << "!!!! (" << __LINE__ << ") exp=" << exponent << " exp()=" << exp(-exponent) << " sigma_x=" << pow(trans.x - pred.x, 2) << endl;
+                    double exponent = pow(trans.x - pred.x, 2) / denom_x + pow(trans.y - pred.y, 2) / denom_y;
                     p.weight *= gauss_norm * exp(-exponent);
-                    // break;
                 }
             }
         }
